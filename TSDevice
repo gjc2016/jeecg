@@ -1,0 +1,266 @@
+package com.buss.entity.device;
+
+import java.math.BigDecimal;
+import java.util.List;
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import javax.persistence.OneToMany;
+import javax.persistence.OneToOne;
+import javax.persistence.Table;
+
+import org.codehaus.jackson.annotate.JsonIgnore;
+import org.hibernate.annotations.DynamicInsert;
+import org.hibernate.annotations.DynamicUpdate;
+import org.hibernate.annotations.GenericGenerator;
+
+/**   
+ * @Title: Entity
+ * @Description: 设备管理
+ * @author zhangdaihao
+ * @date 2016-03-04 15:44:17
+ * @version V1.0   
+ *
+ */
+@Entity
+@Table(name = "t_s_device", schema = "")
+@DynamicUpdate(true)
+@DynamicInsert(true)
+@SuppressWarnings("serial")
+public class TSDevice implements java.io.Serializable {
+	/**主键*/
+	private java.lang.String id;
+	/** 设备编号 */
+	private java.lang.String devicenumber;
+	/** 设备编号 */
+	private java.lang.String crcdevicenumber;
+	/**设备名称*/
+	private java.lang.String devicename;
+	/**设备型号*/
+	private java.lang.String model;
+	// 手机
+	private String mobilePhone;
+//	/**使用设备的公司*/
+//	private java.lang.String orgid;
+	/**生产日期*/
+	private java.util.Date createtime;
+	/**出货日期*/
+	private java.util.Date shiptime;
+	/**价格*/
+	private String price;
+	/**备注*/
+	private java.lang.String des;
+	
+	private TSDeviceOrg tsDeviceOrg;
+	private List<TSLogInfo> tsLogInfos;
+	
+	/**
+	 *方法: 取得java.lang.String
+	 *@return: java.lang.String  主键
+	 */
+	
+	@Id
+	@GeneratedValue(generator = "paymentableGenerator")
+	@GenericGenerator(name = "paymentableGenerator", strategy = "uuid")
+	@Column(name ="ID",nullable=false,length=32)
+	public java.lang.String getId(){
+		return this.id;
+	}
+
+	/**
+	 *方法: 设置java.lang.String
+	 *@param: java.lang.String  主键
+	 */
+	public void setId(java.lang.String id){
+		this.id = id;
+	}
+	
+	/**
+	 *方法: 取得java.lang.String
+	 *@return: java.lang.String  设备编号
+	 */
+	@Column(name ="DEVICENUMBER",nullable=true,length=32)
+	public java.lang.String getDevicenumber()
+	{
+		return devicenumber;
+	}
+
+	/**
+	 *方法: 设置java.lang.String
+	 *@param: java.lang.String  设备编号
+	 */
+	public void setDevicenumber(java.lang.String devicenumber)
+	{
+		this.devicenumber = devicenumber;
+	}
+
+	/**
+	 *方法: 取得java.lang.String
+	 *@return: java.lang.String  设备编号
+	 */
+	@Column(name ="CRCDEVICENUMBER",nullable=true,length=32)
+	public java.lang.String getCrcdevicenumber()
+	{
+		return crcdevicenumber;
+	}
+
+	public void setCrcdevicenumber(java.lang.String crcdevicenumber)
+	{
+		this.crcdevicenumber = crcdevicenumber;
+	}
+
+	/**
+	 *方法: 取得java.lang.String
+	 *@return: java.lang.String  设备名称
+	 */
+	@Column(name ="DEVICENAME",nullable=true,length=32)
+	public java.lang.String getDevicename(){
+		return this.devicename;
+	}
+
+	/**
+	 *方法: 设置java.lang.String
+	 *@param: java.lang.String  设备名称
+	 */
+	public void setDevicename(java.lang.String devicename){
+		this.devicename = devicename;
+	}
+	/**
+	 *方法: 取得java.lang.String
+	 *@return: java.lang.String  设备型号
+	 */
+	@Column(name ="MODEL",nullable=true,length=32)
+	public java.lang.String getModel(){
+		return this.model;
+	}
+
+	/**
+	 *方法: 设置java.lang.String
+	 *@param: java.lang.String  设备型号
+	 */
+	public void setModel(java.lang.String model){
+		this.model = model;
+	}
+	
+	@Column(name ="mobilePhone",nullable=true,length=32)
+	public String getMobilePhone()
+	{
+		return mobilePhone;
+	}
+
+	public void setMobilePhone(String mobilePhone)
+	{
+		this.mobilePhone = mobilePhone;
+	}
+
+	//	/**
+//	 *方法: 取得java.lang.String
+//	 *@return: java.lang.String  使用设备的公司
+//	 */
+//	@Column(name ="ORGID",nullable=true,length=32)
+//	public java.lang.String getOrgid(){
+//		return this.orgid;
+//	}
+//
+//	/**
+//	 *方法: 设置java.lang.String
+//	 *@param: java.lang.String  使用设备的公司
+//	 */
+//	public void setOrgid(java.lang.String orgid){
+//		this.orgid = orgid;
+//	}
+	/**
+	 *方法: 取得java.util.Date
+	 *@return: java.util.Date  生产日期
+	 */
+	@Column(name ="CREATETIME",nullable=true)
+	public java.util.Date getCreatetime(){
+		return this.createtime;
+	}
+
+	/**
+	 *方法: 设置java.util.Date
+	 *@param: java.util.Date  生产日期
+	 */
+	public void setCreatetime(java.util.Date createtime){
+		this.createtime = createtime;
+	}
+	/**
+	 *方法: 取得java.util.Date
+	 *@return: java.util.Date  出货日期
+	 */
+	@Column(name ="SHIPTIME",nullable=true)
+	public java.util.Date getShiptime(){
+		return this.shiptime;
+	}
+
+	/**
+	 *方法: 设置java.util.Date
+	 *@param: java.util.Date  出货日期
+	 */
+	public void setShiptime(java.util.Date shiptime){
+		this.shiptime = shiptime;
+	}
+	/**
+	 *方法: 取得String
+	 *@return: String  价格
+	 */
+	@Column(name ="PRICE",nullable=true,length=32)
+	public String getPrice(){
+		return this.price;
+	}
+
+	/**
+	 *方法: 设置String
+	 *@param: String  价格
+	 */
+	public void setPrice(String price){
+		this.price = price;
+	}
+	/**
+	 *方法: 取得java.lang.String
+	 *@return: java.lang.String  备注
+	 */
+	@Column(name ="DES",nullable=true,length=200)
+	public java.lang.String getDes(){
+		return this.des;
+	}
+
+	/**
+	 *方法: 设置java.lang.String
+	 *@param: java.lang.String  备注
+	 */
+	public void setDes(java.lang.String des){
+		this.des = des;
+	}
+
+	@JsonIgnore
+	@OneToOne(mappedBy = "tsDevice")
+	public TSDeviceOrg getTsDeviceOrg()
+	{
+		return tsDeviceOrg;
+	}
+
+	public void setTsDeviceOrg(TSDeviceOrg tsDeviceOrg)
+	{
+		this.tsDeviceOrg = tsDeviceOrg;
+	}
+
+	/**
+	 * 设备日志信息
+	 * @return
+	 */
+	@JsonIgnore
+	@OneToMany(mappedBy = "tsDevice")
+	public List<TSLogInfo> getTsLogInfos()
+	{
+		return tsLogInfos;
+	}
+
+	public void setTsLogInfos(List<TSLogInfo> tsLogInfos)
+	{
+		this.tsLogInfos = tsLogInfos;
+	}
+}
