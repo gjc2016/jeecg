@@ -1,0 +1,356 @@
+package com.buss.controller.device;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.mail.Session;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.apache.log4j.Logger;
+import org.hibernate.criterion.Property;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Controller;
+import org.springframework.util.CollectionUtils;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.servlet.ModelAndView;
+
+import org.jeecgframework.core.common.controller.BaseController;
+import org.jeecgframework.core.common.hibernate.qbc.CriteriaQuery;
+import org.jeecgframework.core.common.model.json.AjaxJson;
+import org.jeecgframework.core.common.model.json.ComboTree;
+import org.jeecgframework.core.common.model.json.DataGrid;
+import org.jeecgframework.core.common.model.json.Highchart;
+import org.jeecgframework.core.constant.Globals;
+import org.jeecgframework.core.util.StringUtil;
+import org.jeecgframework.core.util.oConvertUtils;
+import org.jeecgframework.tag.core.easyui.TagUtil;
+import org.jeecgframework.tag.vo.easyui.ComboTreeModel;
+import org.jeecgframework.web.system.pojo.base.TSDepart;
+import org.jeecgframework.web.system.pojo.base.TSLog;
+import org.jeecgframework.web.system.pojo.base.TSUser;
+import org.jeecgframework.web.system.pojo.base.TSUserOrg;
+import org.jeecgframework.web.system.service.SystemService;
+import org.jeecgframework.core.util.CRCUtil;
+import org.jeecgframework.core.util.MyBeanUtils;
+import org.jeecgframework.core.util.ResourceUtil;
+
+import com.alibaba.fastjson.JSON;
+import com.buss.entity.device.TSDevice;
+import com.buss.entity.device.TSDeviceOrg;
+import com.buss.entity.device.TSLogInfo;
+import com.buss.entity.device.TSParaminfo;
+import com.buss.entity.device.TSStateinfo;
+import com.buss.service.device.TSDeviceServiceI;
+
+import test.TestConn;
+
+/**   
+ * @Title: Controller
+ * @Description: 设备管理
+ * @author zhangdaihao
+ * @date 2016-03-04 15:44:17
+ * @version V1.0   
+ *
+ */
+@Scope("prototype")
+@Controller
+@RequestMapping("/tSDeviceController")
+public class TSDeviceController extends BaseController {
+	/**
+	 * Logger for this class
+	 */
+	private static final Logger logger = Logger.getLogger(TSDeviceController.class);
+
+	@Autowired
+	private TSDeviceServiceI tSDeviceService;
+	@Autowired
+	private SystemService systemService;
+	private String message;
+	
+	public String getMessage() {
+		return message;
+	}
+
+	public void setMessage(String message) {
+		this.message = message;
+	}
+
+
+	/**
+	 * 设备管理列表 页面跳转
+	 * 
+	 * @return
+	 */
+	@RequestMapping(params = "list")
+	public ModelAndView list(HttpServletRequest request) {
+		return new ModelAndView("com/buss/device/tSDeviceList");
+	}
+
+	/**
+	 * easyui AJAX请求数据
+	 * 
+	 * @param request
+	 * @param response
+	 * @param dataGrid
+	 * @param user
+	 */
+
+	@RequestMapping(params = "datagrid")
+	public void datagrid(TSDevice tSDevice,HttpServletRequest request, HttpServletResponse response, DataGrid dataGrid) {
+		CriteriaQuery cq = new CriteriaQuery(TSDevice.class, dataGrid);
+		//查询条件组装器
+		org.jeecgframework.core.extend.hqlsearch.HqlGenerateUtil.installHql(cq, tSDevice, request.getParameterMap());
+		
+		String orgIds = request.getParameter("orgIds");
+        List<String> orgIdList = extractIdListByComma(orgIds);
+        // 获取 当前组织机构的设备信息
+        if (!CollectionUtils.isEmpty(orgIdList)) {
+            CriteriaQuery subCq = new CriteriaQuery(TSDeviceOrg.class);
+            subCq.setProjection(Property.forName("tsDevice.id"));
+            subCq.in("tsDepart.id", orgIdList.toArray());
+            subCq.add();
+
+            cq.add(Property.forName("id").in(subCq.getDetachedCriteria()));
+        }
+
+        cq.add();
+		
+		this.tSDeviceService.getDataGridReturn(cq, true);
+		TagUtil.datagrid(response, dataGrid);
+	}
+
+	/**
+	 * 删除设备管理
+	 * 
+	 * @return
+	 */
+	@RequestMapping(params = "del")
+	@ResponseBody
+	public AjaxJson del(TSDevice tSDevice, HttpServletRequest request) {
+		AjaxJson j = new AjaxJson();
+		tSDevice = systemService.getEntity(TSDevice.class, tSDevice.getId());
+		
+		StringBuffer deviceSQL = new StringBuffer();
+		deviceSQL.append("SELECT count(*) from TSLogInfo where tsDevice.devicenumber = '").append(tSDevice.getDevicenumber()).append("'");
+		List<Long> deviceList = systemService.findHql(deviceSQL.toString());
+		if (deviceList.get(0) != 0)
+		{
+			message = "设备存在日志记录不能删除！";
+			j.setMsg(message);
+			return j;
+		}
+		
+		deviceSQL = new StringBuffer();
+		deviceSQL.append("SELECT count(*) from TSParaminfo where tsDevice.devicenumber = '").append(tSDevice.getDevicenumber()).append("'");
+		deviceList = systemService.findHql(deviceSQL.toString());
+		if (deviceList.get(0) != 0)
+		{
+			message = "设备存在参数记录不能删除！";
+			j.setMsg(message);
+			return j;
+		}
+		
+		deviceSQL = new StringBuffer();
+		deviceSQL.append("SELECT count(*) from TSStateinfo where tsDevice.devicenumber = '").append(tSDevice.getDevicenumber()).append("'");
+		deviceList = systemService.findHql(deviceSQL.toString());
+		if (deviceList.get(0) != 0)
+		{
+			message = "设备存在状态记录不能删除！";
+			j.setMsg(message);
+			return j;
+		}
+//		systemService.executeSql("delete from loginfo where deviceid=?", tSDevice.getDevicenumber());
+//		systemService.executeSql("delete from stateinfo where deviceid=?", tSDevice.getDevicenumber());
+//		systemService.executeSql("delete from paraminfo where deviceid=?", tSDevice.getDevicenumber());
+		
+		List<TSDeviceOrg> tsDeviceOrgs = systemService.findByProperty(TSDeviceOrg.class, "tsDevice.id", tSDevice.getId());
+		if (tsDeviceOrgs.size() > 0)
+		{
+			systemService.executeSql("delete from t_s_device_org where device_id=?", tSDevice.getId());
+		}
+		
+		tSDeviceService.delete(tSDevice);
+		
+		message = "设备管理删除成功";
+		systemService.addLog(message, Globals.Log_Type_DEL, Globals.Log_Leavel_INFO);
+		j.setMsg(message);
+		return j;
+	}
+
+	/**
+	 * 添加设备管理
+	 * 
+	 * @param ids
+	 * @return
+	 */
+	@RequestMapping(params = "save")
+	@ResponseBody
+	public AjaxJson save(TSDevice tSDevice, HttpServletRequest request) {
+		AjaxJson j = new AjaxJson();
+		
+		if (StringUtil.isNotEmpty(tSDevice.getId()))
+		{
+			List<String> ids = systemService.findHql("select d.id from TSDevice d where d.devicenumber=? and d.id != ?", new String[]{tSDevice.getDevicenumber(), tSDevice.getId()});
+			
+			if (ids.size() > 0)
+			{
+				message = "设备编号已经存在！";
+			}
+			else
+			{
+				ids = systemService.findHql("select d.id from TSDevice d where d.mobilePhone=? and d.id != ?", new String[]{tSDevice.getMobilePhone(), tSDevice.getId()});
+				
+				if (ids.size() > 0)
+				{
+					message = "设备内置手机号已经存在！";
+				}
+				else
+				{
+					TSDevice t = tSDeviceService.get(TSDevice.class, tSDevice.getId());
+					try
+					{
+						systemService.executeSql("delete from t_s_device_org where device_id=?", tSDevice.getId());
+						saveDeviceOrg(request, tSDevice);
+						
+						MyBeanUtils.copyBeanNotNull2Bean(tSDevice, t);
+						t.setCreatetime(tSDevice.getCreatetime());
+						t.setShiptime(tSDevice.getShiptime());
+						t.setPrice(tSDevice.getPrice());
+						tSDeviceService.saveOrUpdate(t);
+						
+						message = "修改设备"+tSDevice.getDevicenumber()+"信息成功！";
+						systemService.addLog(message, Globals.Log_Type_UPDATE, Globals.Log_Leavel_INFO);
+					}
+					catch (Exception e)
+					{
+						e.printStackTrace();
+						message = "设备管理更新失败";
+					}
+				}
+			}
+		}
+		else 
+		{
+			TSDevice devices = systemService.findUniqueByProperty(TSDevice.class, "devicenumber", tSDevice.getDevicenumber());
+			if (devices != null)
+			{
+				message = "设备编号: " + tSDevice.getDevicenumber() + "已经存在";
+			}
+			else
+			{
+				devices = systemService.findUniqueByProperty(TSDevice.class, "mobilePhone", tSDevice.getMobilePhone());
+				if (devices != null)
+				{
+					message = "内置手机号: " + tSDevice.getMobilePhone() + "已经存在";
+				}
+				else
+				{
+					tSDeviceService.save(tSDevice);
+					
+					saveDeviceOrg(request, tSDevice);
+					
+					message = "添加设备" + tSDevice.getDevicenumber()+ " 成功";
+					systemService.addLog(message, Globals.Log_Type_INSERT, Globals.Log_Leavel_INFO);
+				}
+			}
+		}
+		j.setMsg(message);
+		return j;
+	}
+
+	/**
+	 * 保存设备-组织关系
+	 * 
+	 * @param request
+	 * @param tSDevice
+	 */
+	private void saveDeviceOrg(HttpServletRequest request, TSDevice tSDevice)
+	{
+		TSUser user = ResourceUtil.getSessionUserName();
+		List<String> orgIdList = systemService.findHql("select tuo.tsDepart.id from TSUserOrg tuo where tuo.tsUser.id=?", new String[]{user.getId()});
+		String orgIds = null;
+		if (orgIdList.size() > 0)
+		{
+			orgIds = orgIdList.get(0);
+		}
+//		String orgIds = oConvertUtils.getString(request.getParameter("orgIds"));
+
+		TSDepart tsDepart = new TSDepart();
+		tsDepart.setId(orgIds);
+		
+		TSDeviceOrg tsDeviceOrg = new TSDeviceOrg();
+		tsDeviceOrg.setTsDepart(tsDepart);
+		tsDeviceOrg.setTsDevice(tSDevice);
+		
+		tSDeviceService.save(tsDeviceOrg);
+	}
+	/**
+	 * 设备管理列表页面跳转
+	 * 
+	 * @return
+	 */
+	@RequestMapping(params = "addorupdate")
+	public ModelAndView addorupdate(TSDevice tSDevice, HttpServletRequest req) 
+	{
+		List<String> orgIdList = new ArrayList<String>();
+        
+		if (StringUtil.isNotEmpty(tSDevice.getId())) 
+		{
+			tSDevice = tSDeviceService.getEntity(TSDevice.class, tSDevice.getId());
+			req.setAttribute("tSDevicePage", tSDevice);
+			
+			orgIdList = systemService.findHql("select do.tsDepart.id from TSDeviceOrg do where do.tsDevice.id=?", new String[]{tSDevice.getId()});
+		}
+		
+		req.setAttribute("orgIdList", JSON.toJSON(orgIdList));
+		return new ModelAndView("com/buss/device/tSDevice");
+	}
+	
+	/**
+     * 获取设备树-combotree
+     * @param request
+     * @return
+     */
+    @RequestMapping(params = "getDeviceTree")
+    @ResponseBody
+    public List<ComboTree> getDeviceTree(HttpServletRequest request){
+    	String comId = request.getParameter("comId");
+    	List devices = systemService.findHql("select t.id, t.devicenumber from TSDeviceOrg do, TSDevice t where t.id = do.tsDevice.id and do.tsDepart.id=?", new String[]{comId});;
+    	List<TSDevice> deviceList = new ArrayList<TSDevice>();
+    	TSDevice tsDevice = null;
+    	for (int i = 0; i < devices.size(); i++)
+    	{
+    		tsDevice = new TSDevice();
+    		tsDevice.setId(String.valueOf(((Object[])(devices.get(i)))[0]));
+    		tsDevice.setDevicenumber(String.valueOf(((Object[])(devices.get(i)))[1]));
+    		deviceList.add(tsDevice);
+    	}
+    	
+        List<ComboTree> comboTrees = new ArrayList<ComboTree>();
+        ComboTreeModel comboTreeModel = new ComboTreeModel("id", "devicenumber", "");
+        comboTrees = systemService.ComboTree(deviceList, comboTreeModel, null, true);
+        return comboTrees;
+    }
+    
+    @RequestMapping(params = "getCRCNumber")
+	@ResponseBody
+    public String getCRCNumber(HttpServletRequest request,String devicenumber, HttpServletResponse response)
+    {
+    	// 添加校验位
+    	byte[] deviceNumberList = devicenumber.getBytes();
+    	byte crc = CRCUtil.calcCrc8(deviceNumberList);
+    	
+    	if (Integer.toHexString(0x00ff & crc).toString().length() == 2)
+    	{
+    		devicenumber = devicenumber + Integer.toHexString(0x00ff & crc).toString().toUpperCase();
+    	}
+    	else if (Integer.toHexString(0x00ff & crc).toString().length() == 1)
+    	{
+    		devicenumber = devicenumber + "0" + Integer.toHexString(0x00ff & crc).toString().toUpperCase();
+    	}
+    	
+    	return devicenumber;
+    }
+}
